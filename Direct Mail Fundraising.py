@@ -17,13 +17,13 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
 import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
-from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.tree import DecisionTreeClassifier
 import dmba
-from dmba import plotDecisionTree,regressionSummary
+from dmba import plotDecisionTree,classificationSummary
 from sklearn import tree
 
-import dmba
-from dmba import classificationSummary
+
 from dmba import regressionSummary#, exhaustive_search
 from dmba import backward_elimination, forward_selection, stepwise_selection
 from dmba import AIC_score #, BIC_score, adjusted_r2_score
@@ -62,7 +62,9 @@ corr["TARGET_B"]
 #finding best variables
 # create a list containing predictors' name
 #name predictors
-predictors = fundraising_df.drop(columns = ["TARGET_D","TARGET_B","Row Id."])
+#best variables totalmonths,homeowner dummy, AVGGIFT, INCOME, TIMELAG, None
+#predictors = fundraising_df.drop(columns = ["TARGET_D","TARGET_B","Row Id.",])
+predictors = fundraising_df[["totalmonths","homeowner dummy","AVGGIFT","INCOME","TIMELAG"]]
 predictors.columns
 predictors.head()
 
@@ -72,7 +74,12 @@ outcome = fundraising_df['TARGET_B']
 
 #defining x and y
 x = predictors
+
+#changed outcome to string
 y = outcome
+#y = outcome.map({1:'Donor',0:'Non_donor'})
+
+
 
 
 # check data type of the predictors
@@ -83,35 +90,80 @@ train_x, valid_x, train_y, valid_y = train_test_split(x, y, test_size=0.4,random
 train_x.head()
 
 
-# user grid search to find optimized tree
-# run param_grid block together
+#create a tree model
+fullClassTree = DecisionTreeClassifier()
+fullClassTree.fit(train_x, train_y)
+
+
+plotDecisionTree(fullClassTree, feature_names=train_x.columns, rotate = True)
+
+
+
+tree = fullClassTree
+print('Number of nodes', tree.tree_.node_count)
+
+
+#Table 9.6: Exhaustive grid search to fine tune method parameters
+# Start with an initial guess for parameters
+# run the param_grid block together
 param_grid = {
-    'max_depth': [5, 10, 15, 20, 25], 
-    'min_impurity_decrease': [0, 0.001, 0.005, 0.01], 
-    'min_samples_split': [10, 20, 30, 40, 50], 
+    'max_depth': [5,6,7,8,9,10], 
+    'min_samples_split': [96,97,98,99,100], 
+    'min_impurity_decrease': [0, 0.0005, 0.001, 0.005, 0.01], 
 }
-gridSearch = GridSearchCV(DecisionTreeRegressor(), param_grid, cv=5, n_jobs=-1)
+
+#may take a few seconds to see the results in Console
+gridSearch = GridSearchCV(DecisionTreeClassifier(), param_grid, cv=5, n_jobs=-1)
 gridSearch.fit(train_x, train_y)
+
+print('Initial score: ', gridSearch.best_score_)
+#Initial score:  0.5486060606060607
+
 print('Initial parameters: ', gridSearch.best_params_)
 
-
-# run param_grid block together
+# Adapt grid based on result from initial grid search
+# run the param_grid block together
 param_grid = {
-    'max_depth': [1,2,3,4,5], 
-    'min_impurity_decrease': [0, 0.001, 0.002, 0.003, 0.004, 0.005], 
-    'min_samples_split': [10,11,12,13,14,], 
+    'max_depth': list(range(1,5)), 
+    'min_samples_split': list(range(80,90)), 
+    'min_impurity_decrease': [0,0.0009, 0.001, 0.0011], 
 }
-gridSearch = GridSearchCV(DecisionTreeRegressor(), param_grid, cv=5, n_jobs=-1)
+gridSearch = GridSearchCV(DecisionTreeClassifier(), param_grid, cv=5, n_jobs=-1)
 gridSearch.fit(train_x, train_y)
+print('Improved score: ', gridSearch.best_score_)
 print('Improved parameters: ', gridSearch.best_params_)
 
-regTree = gridSearch.best_estimator_
+bestClassTree = gridSearch.best_estimator_
 
-#regression tree performance
-regressionSummary(train_y, regTree.predict(train_x))
-regressionSummary(valid_y, regTree.predict(valid_x))
+plotDecisionTree(bestClassTree, feature_names=train_x.columns)
 
-plotDecisionTree(regTree, feature_names=train_x.columns)
-plotDecisionTree(regTree, feature_names=train_x.columns, rotate=True)
+# check model's accuracy
+classificationSummary(train_y, bestClassTree.predict(train_x))
+##Confusion Matrix (Accuracy 0.5716)
+classificationSummary(valid_y, bestClassTree.predict(valid_x))
+#Confusion Matrix (Accuracy 0.5513)
+
+
+
+
+#to find best predictors
+# need to run the function as one block
+def train_model(variables):
+    if len(variables) == 0: 
+        return None
+    model = LinearRegression() 
+    model.fit(train_x[variables], train_y) 
+    return model
+
+def score_model(model, variables): 
+    if len(variables) == 0:
+        return AIC_score(train_y, [train_y.mean()] * len(train_y), model, df=1) 
+    return AIC_score(train_y, model.predict(train_x[variables]), model)
+
+best_model, best_variables = forward_selection(train_x.columns, train_model, score_model, verbose=True)
+print(best_variables)
+
+#best variables totalmonths,homeowner dummy, AVGGIFT, INCOME, TIMELAG, None
+
 
 
