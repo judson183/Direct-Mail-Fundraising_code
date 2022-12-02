@@ -23,7 +23,7 @@ import dmba
 from dmba import plotDecisionTree,classificationSummary
 from sklearn import tree
 
-
+import statsmodels.formula.api as sm	
 from dmba import regressionSummary#, exhaustive_search
 from dmba import backward_elimination, forward_selection, stepwise_selection
 from dmba import AIC_score #, BIC_score, adjusted_r2_score
@@ -140,6 +140,7 @@ plotDecisionTree(bestClassTree, feature_names=train_x.columns)
 # check model's accuracy
 classificationSummary(train_y, bestClassTree.predict(train_x))
 ##Confusion Matrix (Accuracy 0.5716)
+#THe model's peroformance
 classificationSummary(valid_y, bestClassTree.predict(valid_x))
 #Confusion Matrix (Accuracy 0.5513)
 
@@ -165,5 +166,75 @@ print(best_variables)
 
 #best variables totalmonths,homeowner dummy, AVGGIFT, INCOME, TIMELAG, None
 
+
+
+
+
+
+#Part 2
+#Regression Model 
+# reduce data frame to the top 2000 rows and select columns for regression analysis
+fundraising_regression = fundraising_df.iloc[0:2000]
+
+fundraising_regression.head()
+
+#Using Correlation to find the best variables
+corr_Target_D = corr["TARGET_D"]
+corr_Target_D
+
+
+#highly correlated predictors
+predictors_regression = fundraising_regression.drop(columns=['Row Id.','TARGET_D','TARGET_B'])
+print(predictors_regression)
+
+
+# define outcome/target variable
+outcome_regression = fundraising_regression['TARGET_D']
+print(outcome)
+
+# check data type of the predictors
+predictors_regression.dtypes
+
+
+#X and Y
+X = predictors_regression
+Y = outcome_regression
+
+X.shape
+Y.shape
+
+# partition data; split the data training (60%) vs. validation (40%)
+train_X, valid_X, train_Y, valid_Y = train_test_split(X,Y, test_size=0.4,random_state=1) 
+train_X.head()
+
+
+# check training and validation data sets
+data={'Data Set':['train_X', 'valid_X','train_Y','valid_Y'], 'Shape': [train_X.shape, valid_X.shape, train_Y.shape, valid_Y.shape]}
+df=pd.DataFrame(data)
+print(df)
+
+
+
+#build linear regression model using the training data
+fundraising_regression_model= LinearRegression()
+fundraising_regression_model.fit(train_X, train_Y)
+
+
+# print coefficients
+print(pd.DataFrame({'Predictor': X.columns, 'coefficient': fundraising_regression_model.coef_}))
+
+
+
+# print performance measures (training data)
+regressionSummary(train_Y,fundraising_regression_model.predict(train_X))
+
+
+#
+# Use predict() to make predictions on a new set
+fundraising_pred = fundraising_regression_model.predict(valid_X)
+result = pd.DataFrame({'Predicted': fundraising_pred, 'Actual': valid_Y, 'Residual': valid_Y - fundraising_pred})
+print(result.head(20))
+# print performance measures (validation data)
+regressionSummary(valid_Y, fundraising_pred)
 
 
