@@ -168,6 +168,50 @@ print(best_variables)
 
 
 
+#creating a neurala network to compare o the output
+#already imported the variabless in classification
+
+#imput
+input_vars = fundraising_df[["totalmonths","homeowner dummy","AVGGIFT","INCOME","TIMELAG"]]
+
+#output
+outcome = fundraising_df['TARGET_B']
+
+
+# partition data
+X = input_vars
+Y = outcome
+train_X, valid_X, train_Y, valid_Y = train_test_split(X, Y, test_size=0.4, random_state=1)
+
+
+# train neural network with 2 hidden nodes
+network_model = MLPClassifier(hidden_layer_sizes=(2), activation='logistic', solver='lbfgs', random_state=1)
+network_model.fit(train_X, train_Y.values)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
